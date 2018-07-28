@@ -14,7 +14,8 @@ module W3 where
 -- Remember that integer division can be done with the div function.
 
 safeDiv :: Integer -> Integer -> Maybe Integer
-safeDiv x y = undefined
+safeDiv x 0 = Nothing
+safeDiv x y = Just (x `div` y)
 
 -- Ex 2: another variant of safe division. This time a succesful
 -- division should be returned as
@@ -24,7 +25,8 @@ safeDiv x y = undefined
 -- (replace 1234 with the value of x).
 
 eitherDiv :: Integer -> Integer -> Either String Integer
-eitherDiv x y = undefined
+eitherDiv x 0 = Left $ (show x) ++ "/0"
+eitherDiv x y = Right $ x `div` y
 
 -- Ex 3: implement the function mapMaybe, which works a bit like a
 -- combined map & filter.
@@ -47,7 +49,9 @@ eitherDiv x y = undefined
 --   ==> []
 
 mapMaybe :: (a -> Maybe b) -> [a] -> [b]
-mapMaybe f xs = undefined
+mapMaybe f xs = foldr applyAndFilter [] xs
+    where applyAndFilter x acc = case f x of (Just res) -> res:acc
+                                             Nothing -> acc
 
 -- Ex 4: define the function classify that takes a list of Either a b
 -- values and returns a list of the Left values and a list of the
@@ -62,7 +66,9 @@ mapMaybe f xs = undefined
 --     ==> ([1,0],[True,False])
 
 classify :: [Either a b] -> ([a],[b])
-classify es = undefined
+classify es = foldr classifyElem ([], []) es
+    where classifyElem eitherElem (accLeft, accRight) = case eitherElem of (Left x) -> (x:accLeft, accRight)
+                                                                           (Right x) -> (accLeft, x:accRight)
 
 -- Ex 5: define a datatype Person, which should contain the age (an
 -- Int) and the name (a String) of a person.
@@ -70,28 +76,28 @@ classify es = undefined
 -- Also define a Person value fred, and the functions getAge, getname,
 -- setAge and setName (see below).
 
-data Person = PersonUndefined
+data Person = Person Int String
   deriving Show
 
 -- fred is a person whose name is Fred and age is 90
 fred :: Person
-fred = undefined
+fred = Person 90 "Fred"
 
 -- getName returns the name of the person
 getName :: Person -> String
-getName p = undefined
+getName (Person _ name) = name
 
 -- getAge returns the age of the person
 getAge :: Person -> Int
-getAge p = undefined
+getAge (Person age _) = age
 
 -- setName takes a person and returns a new person with the name changed
 setName :: String -> Person -> Person
-setName name p = undefined
+setName name (Person age _) = Person age name
 
 -- setAge does likewise for age
 setAge :: Int -> Person -> Person
-setAge age p = undefined
+setAge age (Person _ name) = Person age name
 
 
 -- Ex 6: define a datatype TwoCounters which contains two Int
@@ -105,27 +111,27 @@ setAge age p = undefined
 -- getB (incB (incA zeros))
 --   ==> 1
 
-data TwoCounters = Undefined
+data TwoCounters = TwoCounters Int Int
 
 -- zeros is a TwoCounters value with both counters initialized to 0
 zeros :: TwoCounters
-zeros = undefined
+zeros = TwoCounters 0 0
 
 -- getA returns the value of the "A" counter
 getA :: TwoCounters -> Int
-getA tc = undefined
+getA (TwoCounters a _) = a
 
 -- getB returns the value of the "B" counter
 getB :: TwoCounters -> Int
-getB tc = undefined
+getB (TwoCounters _ b) = b
 
 -- incA increases the value of the "A" counter by one
 incA :: TwoCounters -> TwoCounters
-incA tc = undefined
+incA (TwoCounters a b) = TwoCounters (a + 1) b
 
 -- incB does likewise for the "B" counter
 incB :: TwoCounters -> TwoCounters
-incB tc = undefined
+incB (TwoCounters a b) = TwoCounters a (b + 1)
 
 -- Ex 7: define a datatype UpDown that represents a counter that can
 -- either be in incresing or decreasing mode. Also implement the
@@ -144,25 +150,28 @@ incB tc = undefined
 -- get (tick (tick (toggle (tick zero))))
 --   ==> -1
 
-data UpDown = UpDownUndefined1 | UpDownUndefined2
+data UpDown = IncrCounter Int | DecrCounter Int
 
 -- zero is an increasing counter with value 0
 zero :: UpDown
-zero = undefined
+zero = IncrCounter 0
 
 -- get returns the counter value
 get :: UpDown -> Int
-get ud = undefined
+get (IncrCounter c) = c
+get (DecrCounter c) = c
 
 -- tick increases an increasing counter by one or decreases a
 -- decreasing counter by one
 tick :: UpDown -> UpDown
-tick ud = undefined
+tick (IncrCounter c) = IncrCounter (c + 1)
+tick (DecrCounter c) = DecrCounter (c - 1)
 
 -- toggle changes an increasing counter into a decreasing counter and
 -- vice versa
 toggle :: UpDown -> UpDown
-toggle ud = undefined
+toggle (IncrCounter c) = DecrCounter c
+toggle (DecrCounter c) = IncrCounter c
 
 -- !!!!!
 -- The next exercises use the binary tree type defined like this:
