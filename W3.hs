@@ -184,13 +184,15 @@ data Tree a = Leaf | Node a (Tree a) (Tree a)
 -- because the tree might be empty (i.e. just a Leaf)
 
 valAtRoot :: Tree a -> Maybe a
-valAtRoot t = undefined
+valAtRoot Leaf = Nothing
+valAtRoot (Node x _ _) = Just x
 
 -- Ex 9: compute the size of a tree, that is, the number of Node
 -- constructors in it
 
 treeSize :: Tree a -> Int
-treeSize t = undefined
+treeSize Leaf = 0
+treeSize (Node _ left right) = 1 + (treeSize left) + (treeSize right)
 
 -- Ex 10: get the leftmost value in the tree. The return value is
 -- Maybe a because the tree might be empty.
@@ -208,7 +210,9 @@ treeSize t = undefined
 --   ==> Just 2
 
 leftest :: Tree a -> Maybe a
-leftest t = undefined
+leftest Leaf = Nothing
+leftest (Node rootVal Leaf _) = Just rootVal
+leftest (Node _ left _) = leftest left
 
 -- Ex 11: implement map for trees.
 --
@@ -219,7 +223,8 @@ leftest t = undefined
 --   ==> (Node 2 (Node 3 Leaf Leaf) (Node 4 Leaf Leaf))
 
 mapTree :: (a -> b) -> Tree a -> Tree b
-mapTree f t = undefined
+mapTree f Leaf = Leaf
+mapTree f (Node root left right) = Node (f root) (mapTree f left) (mapTree f right)
 
 -- Ex 12: insert the given value into the leftmost possible place. You
 -- need to return a new tree since the function is pure.
@@ -244,7 +249,8 @@ mapTree f t = undefined
 
 
 insertL :: a -> Tree a -> Tree a
-insertL x t = undefined
+insertL x Leaf = Node x Leaf Leaf
+insertL x (Node root left right) = Node root (insertL x left) right
 
 -- Ex 13: implement the function measure, that takes a tree and
 -- returns a tree with the same shape, but with the value at every
@@ -271,7 +277,14 @@ insertL x t = undefined
 
 
 measure :: Tree a -> Tree Int
-measure t = undefined
+measure Leaf = Leaf
+measure (Node root left right) = Node (1 + leftSize + rightSize) leftMeasured rightMeasured
+    where leftMeasured = measure left
+          rightMeasured = measure right
+          leftSize = case leftMeasured of Leaf -> 0
+                                          (Node size _ _) -> size
+          rightSize = case rightMeasured of Leaf -> 0
+                                            (Node size _ _) -> size
 
 -- Ex 14: the standard library function
 --   foldr :: (a -> b -> b) -> b -> [a] -> b
@@ -290,13 +303,13 @@ mysum :: [Int] -> Int
 mysum is = foldr sumf 0 is
 
 sumf :: Int -> Int -> Int
-sumf x y = undefined
+sumf x y = x + y
 
 mylength :: [a] -> Int
 mylength xs = foldr lengthf 0 xs
 
 lengthf :: a -> Int -> Int
-lengthf x y = undefined
+lengthf _ y = y + 1
 
 -- Ex 15: implement the function foldTree that works like foldr, but
 -- for Trees.
@@ -329,7 +342,8 @@ treeLeaves :: Tree a -> Int
 treeLeaves t = foldTree leaft 1 t
 
 foldTree :: (a -> b -> b -> b) -> b -> Tree a -> b
-foldTree f x t = undefined
+foldTree f x Leaf = x
+foldTree f x (Node root left right) = f root (foldTree f x left) (foldTree f x right)
 
 -- Ex 16: You'll find a Color datatype below. It has the three basic
 -- colours Red, Green and Blue, and two color transformations, Mix and
@@ -363,4 +377,10 @@ data Color = Red | Green | Blue | Mix Color Color | Darken Double Color
   deriving Show
 
 rgb :: Color -> [Double]
-rgb col = undefined
+rgb Red = [1, 0, 0]
+rgb Green = [0, 1, 0]
+rgb Blue = [0, 0, 1]
+rgb (Darken darkenValue color)
+    | darkenValue < 0 || darkenValue > 1 = error "Darkening value must be in [0,1]"
+    | otherwise = map (* (1 - darkenValue)) $ rgb color
+rgb (Mix c1 c2) = zipWith (\x y -> min 1.0 (x + y)) (rgb c1) (rgb c2)
