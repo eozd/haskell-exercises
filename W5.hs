@@ -28,10 +28,10 @@ import Data.List
 -- True *! 3 ==> [True,True,True]
 
 (%$) :: String -> String -> String
-x %$ y = undefined
+x %$ y = x ++ y ++ x
 
 (*!) :: Int -> a -> [a]
-n *! val = undefined
+n *! val = take n $ repeat val
 
 -- Ex 2: implement the function allEqual which returns True if all
 -- values in the list are equal.
@@ -46,7 +46,10 @@ n *! val = undefined
 -- you remove the Eq a => constraint from the type!
 
 allEqual :: Eq a => [a] -> Bool
-allEqual xs = undefined
+allEqual []  = True
+allEqual [_] = True
+allEqual (head:rest) =
+    foldl' (\acc x -> if x /= head then False else acc) True rest
 
 -- Ex 3: implement the function secondSmallest that returns the second
 -- smallest value in the list, or Nothing if there is no such value.
@@ -58,7 +61,9 @@ allEqual xs = undefined
 -- secondSmallest [5,3,7,2,3,1]  ==>  Just 2
 
 secondSmallest :: Ord a => [a] -> Maybe a
-secondSmallest xs = undefined
+secondSmallest []  = Nothing
+secondSmallest [_] = Nothing
+secondSmallest xs  = Just . minimum $ delete (minimum xs) xs
 
 -- Ex 4: find how two lists differ from each other. If they have
 -- different lengths, return
@@ -78,7 +83,17 @@ secondSmallest xs = undefined
 --  findDifference [0,0,0] [0,0,0,0]
 --    ==> Just "3 /= 4"
 
-findDifference = undefined
+findDifference :: (Eq a, Show a) => [a] -> [a] -> Maybe String
+findDifference xs ys = if xsLen /= ysLen
+    then Just $ show xsLen ++ " /= " ++ show ysLen
+    else checkListEquality xs ys 0
+  where
+    xsLen = length xs
+    ysLen = length ys
+    checkListEquality [] [] _ = Nothing
+    checkListEquality (x:xs) (y:ys) i
+        | x == y    = checkListEquality xs ys (i + 1)
+        | otherwise = Just $ show x ++ " /= " ++ show y
 
 -- Ex 5: compute the average of a list of values of the Fractional
 -- class.
@@ -139,7 +154,7 @@ instance Num Vector where
 -- freqs [False,False,False,True]
 --   ==> [(3,False),(1,True)]
 
-freqs :: Eq a => [a] -> [(Int,a)]
+freqs :: Eq a => [a] -> [(Int, a)]
 freqs xs = undefined
 
 -- Ex 11: implement an Eq instance for the following binary tree type
@@ -231,7 +246,7 @@ instance Functor Fun where
 --  *W5> threeRandom (mkStdGen 2) :: (Bool,Bool,Bool)
 --  (True,True,False)
 
-threeRandom :: (Random a, RandomGen g) => g -> (a,a,a)
+threeRandom :: (Random a, RandomGen g) => g -> (a, a, a)
 threeRandom g = undefined
 
 -- Ex 18: given a Tree (same type as on Week 3), randomize the
@@ -255,5 +270,5 @@ threeRandom g = undefined
 data Tree a = Leaf | Node a (Tree a) (Tree a)
   deriving Show
 
-randomizeTree :: (Random a, RandomGen g) => Tree b -> g -> (Tree a,g)
+randomizeTree :: (Random a, RandomGen g) => Tree b -> g -> (Tree a, g)
 randomizeTree t g = undefined
