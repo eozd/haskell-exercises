@@ -350,10 +350,10 @@ safeDiv x 0.0 = Nothing
 safeDiv x y   = Just (x / y)
 
 mapM2 :: Monad m => (a -> b -> m c) -> [a] -> [b] -> m [c]
-mapM2 op [] ys = return []
-mapM2 op xs [] = return []
+mapM2 op []     ys     = return []
+mapM2 op xs     []     = return []
 mapM2 op (x:xs) (y:ys) = do
-    result <- op x y
+    result     <- op x y
     resultRest <- mapM2 op xs ys
     return $ result : resultRest
 
@@ -420,7 +420,18 @@ routeExists :: [[Int]] -> Int -> Int -> Bool
 routeExists cities i j = j `elem` execState (dfs cities i) []
 
 dfs :: [[Int]] -> Int -> State [Int] ()
-dfs cities i = undefined
+dfs cities i = do
+    let connectedToI = i : cities !! i  -- for some reason, adj list doesn't contain i in List[i].
+    mapM_ visitCity connectedToI
+  where
+    visitCity j = do
+        visited <- get
+        if j `elem` visited
+            then return ()
+            else do
+                modify (\s -> j : s)
+                dfs cities j
+
 
 -- Ex 12: define the function orderedPairs that returns all pairs
 -- (i,j) such that i<j and i occurs in the given list before j.
@@ -434,7 +445,12 @@ dfs cities i = undefined
 -- PS. once again the tests don't care about the order of results
 
 orderedPairs :: [Int] -> [(Int, Int)]
-orderedPairs xs = undefined
+orderedPairs xs = do
+    i <- xs
+    let listAfterI = tail . snd $ break (== i) xs
+    j <- listAfterI
+    guard (i < j)
+    return (i, j)
 
 -- Ex 13: compute all possible sums of elements from the given
 -- list. Use the list monad.
@@ -453,7 +469,7 @@ orderedPairs xs = undefined
 --     ==> [7,3,5,1,6,2,4,0]
 
 sums :: [Int] -> [Int]
-sums xs = undefined
+sums xs = map sum powerset where powerset = filterM (\x -> [True, False]) xs
 
 -- Ex 14: the standard library defines the function
 --
@@ -478,7 +494,8 @@ sumBounded :: Int -> [Int] -> Maybe Int
 sumBounded k xs = foldM (f1 k) 0 xs
 
 f1 :: Int -> Int -> Int -> Maybe Int
-f1 k acc x = undefined
+f1 k acc x =
+    let newSum = acc + x in if newSum > k then Nothing else Just newSum
 
 -- sumNotTwice computes the sum of a list, but ignores duplicated
 -- elements.
@@ -492,7 +509,13 @@ sumNotTwice :: [Int] -> Int
 sumNotTwice xs = fst $ runState (foldM f2 0 xs) []
 
 f2 :: Int -> Int -> State [Int] Int
-f2 acc x = undefined
+f2 acc x = do
+    prevElems <- get
+    if x `elem` prevElems
+        then return acc
+        else do
+            modify (\s -> x : s)
+            return $ x + acc
 
 -- Ex 15: here is the Result type from last week. Implement a Monad
 -- Result instance that behaves roughly like the Monad Maybe instance.
@@ -531,7 +554,11 @@ instance Applicative Result where
   (<*>) = ap
 
 instance Monad Result where
-  -- implement return and >>=
+    return a = MkResult a
+    (>>=) NoResult _ = NoResult
+    (>>=) (Failure s) _ = Failure s
+    (>>=) (MkResult a) f = f a
+    fail s = Failure s
 
 -- Ex 16: Here is the type SL that combines the State and Logger
 -- types. Implement an instance Monad SL, that behaves like the
@@ -576,7 +603,9 @@ modifySL :: (Int -> Int) -> SL ()
 modifySL f = SL (\s -> ((), f s, []))
 
 instance Functor SL where
-  -- implement fmap
+    fmap g (SL f) = SL (\s ->
+        let (res, newSt, logs) = f s
+        in (g res, newSt, logs))
 
 -- again, disregard this
 instance Applicative SL where
@@ -584,4 +613,9 @@ instance Applicative SL where
   (<*>) = ap
 
 instance Monad SL where
-  -- implement return and >>=
+    return a = SL (\s -> (a, s, []))
+    (>>=) (SL f) g = SL (\s ->
+        let (fRes, fState, fLogs) = f s
+            (SL h) = g fRes
+            (hRes, hState, hLogs) = h fState
+         in (hRes, hState, fLogs ++ hLogs))
