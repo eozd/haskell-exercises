@@ -24,7 +24,9 @@ import Control.Monad.State
 -- PS. you can test the the function like this in ghci: putStr (pyramidi 5)
 
 pyramid :: Int -> String
-pyramid n = undefined
+pyramid n = foldr (\i acc -> ithRow i ++ acc) "" [1 .. n]
+    where ithRow i = replicate (n - i) ' ' ++ replicate (2 * i - 1) '*' ++ "\n"
+
 
 -- Ex 2: collect every second element from the given list.
 --
@@ -39,7 +41,9 @@ pyramid n = undefined
 --    ==> []
 
 everySecond :: [a] -> [a]
-everySecond xs = undefined
+everySecond []       = []
+everySecond [x     ] = [x]
+everySecond (x:y:xs) = x : everySecond xs
 
 -- Ex 3: given a list, return a pair of functions (get,wrap) such that
 --   * get i -- returns element i of the list
@@ -50,7 +54,10 @@ everySecond xs = undefined
 --    ==> (5,True,7,False)
 
 wrap :: Eq a => [a] -> (Int -> a, a -> Bool)
-wrap xs = undefined
+wrap xs = (get, query)
+  where
+    get i = xs !! i
+    query x = x `elem` xs
 
 -- Tehtävä 4: Toteuta funktio nousevat, joka pilkkoo lukulistan
 -- (aidosti) nouseviin pätkiin.
@@ -70,7 +77,18 @@ wrap xs = undefined
 --    ==> [[4,7,9],[3,6],[1,2],[2,5,8],[0]]
 
 increasings :: [Int] -> [[Int]]
-increasings xs = undefined
+increasings [] = [[]]
+increasings xs =
+    let first      = head xs
+        rest       = tail xs
+        restResult = reverse $ map reverse $ incrHelper first rest [[]]
+    in  (first : (head restResult)) : (tail restResult)
+  where
+    incrHelper _ [] res = res
+    incrHelper lastElem (y:ys) res@(accHead:accRest) =
+        let newRes =
+                if y > lastElem then (y : accHead) : accRest else [y] : res
+        in  incrHelper y ys newRes
 
 -- Ex 5: define a datatype Student that holds three pieces of
 -- information about a student: a name (a String), a student number (a
@@ -96,22 +114,19 @@ increasings xs = undefined
 --  getPoints $ addPoints (-1000) $ newStudent "x" "0"
 --    ==> 0
 
-data Student = StudentUndefined
+data Student = Student
+    {
+      getName :: String
+    , getNumber :: String
+    , getPoints :: Int
+    }
 
 newStudent :: String -> String -> Student
-newStudent nam num = undefined
-
-getName :: Student -> String
-getName s = undefined
-
-getNumber :: Student -> String
-getNumber s = undefined
-
-getPoints :: Student -> Int
-getPoints s = undefined
+newStudent name number = Student name number 0
 
 addPoints :: Int -> Student -> Student
-addPoints x s = undefined
+addPoints x (Student name number pts) = Student name number newPts
+    where newPts = pts + max 0 x
 
 -- Ex 6: define a type Tree23 that represents a tree where each
 -- (internal) node has 2 or 3 children.
@@ -128,21 +143,29 @@ addPoints x s = undefined
 -- PS. Leave the "deriving Show" line intact because the tests want to
 -- print out trees
 
-data Tree23 = Undefined
+data Tree23 = Leaf | Tree2 Tree23 Tree23 | Tree3 Tree23 Tree23 Tree23
   deriving Show
 
 leaf :: Tree23
-leaf = undefined
+leaf = Leaf
+
 node2 :: Tree23 -> Tree23 -> Tree23
-node2 = undefined
+node2 left right = Tree2 left right
+
 node3 :: Tree23 -> Tree23 -> Tree23 -> Tree23
-node3 = undefined
+node3 left middle right = Tree3 left middle right
 
 treeHeight :: Tree23 -> Int
-treeHeight t = undefined
+treeHeight Leaf               = 0
+treeHeight (Tree2 left right) = 1 + max (treeHeight left) (treeHeight right)
+treeHeight (Tree3 left middle right) =
+    1 + maximum [treeHeight left, treeHeight middle, treeHeight right]
 
 treeSize :: Tree23 -> Int
-treeSize t = undefined
+treeSize Leaf               = 0
+treeSize (Tree2 left right) = 1 + treeSize left + treeSize right
+treeSize (Tree3 left middle right) =
+    1 + treeSize left + treeSize middle + treeSize right
 
 -- Ex 7: define a type MyString that represents a string and Eq and
 -- Ord instances for it.
@@ -165,18 +188,20 @@ treeSize t = undefined
 -- compare (fromString "abc") (fromString "ab")  ==> GT
 -- compare (fromString "abc") (fromString "abd") ==> LT
 
-data MyString = MyStringUndefined
+data MyString = MyString {toString :: String}
 
 fromString :: String -> MyString
-fromString s = undefined
-toString :: MyString -> String
-toString ms = undefined
+fromString s = MyString s
 
 instance Eq MyString where
-  (==) = error "implement me"
+    (==) (MyString s1) (MyString s2) = s1 == s2
 
 instance Ord MyString where
-  compare = error "implement me"
+    compare (MyString s1) (MyString s2) =
+        let lenS1 = length s1
+            lenS2 = length s2
+        in if lenS1 /= lenS2 then lenS1 `compare` lenS2 else s1 `compare` s2
+
 
 -- Ex 8: below you'll find a type Expr that represents arithmetic
 -- expressions. For instance (1+2)/3+4 would be represented as
@@ -203,7 +228,13 @@ data Expr = Constant Int | Plus Expr Expr | Div Expr Expr
   deriving Show
 
 safeEval :: Expr -> Maybe Int
-safeEval e = undefined
+safeEval (Constant val   ) = Just val
+safeEval (Plus left right) = (+) <$> safeEval left <*> safeEval right
+safeEval (Div  left right) = do
+    leftVal  <- safeEval left
+    rightVal <- safeEval right
+    guard (rightVal /= 0)
+    return $ leftVal `div` rightVal
 
 -- Ex 9: implement the function test that gets a list of monadic
 -- predicates (of type Monad m => a -> m Bool) and a value (of type
@@ -234,17 +265,21 @@ safeEval e = undefined
 --   ==> (False,[4])
 
 test1 :: Int -> Int -> Maybe Bool
-test1 k x = Just (x>k)
+test1 k x = Just (x > k)
 
 failTest :: Int -> Maybe Bool
 failTest x = Nothing
 
 test2 :: Int -> Int -> State [Int] Bool
-test2 k x = do modify (k:)
-               return (x>k)
+test2 k x = do
+    modify (k :)
+    return (x > k)
 
 test :: Monad m => [a -> m Bool] -> a -> m Bool
-test ts x = undefined
+test []     _ = return True
+test (p:ps) x = do
+    cond <- p x
+    if cond then test ps x else return False
 
 -- Ex 10: using the State monad, create a state with the elements that
 -- occur in the given list an _odd_ number of times.
@@ -258,4 +293,10 @@ test ts x = undefined
 --    ==> ((),[3,2,1])
 
 odds :: Eq a => [a] -> State [a] ()
-odds xs = undefined
+odds []     = return ()
+odds (x:xs) = do
+    occurList <- get
+    if x `elem` occurList
+        then modify (\s -> delete x s)
+        else modify (\s -> x : s)
+    odds xs
